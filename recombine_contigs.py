@@ -58,28 +58,59 @@ def add_gaps(old2new, asm):
     return(newasm)
 
 
+def renumber_features(new2old, gff_file):
+    out = []
+    with open(gff_file, "r") as fh:
+        for line in fh:
+            if re.match(r"\#", line):
+                out.append([line.rstrip()])
+            else:
+                ll = line.rstrip().split("\t")
+                # seqid source type start end score strand phase attributes
+                try:
+                    scaff = new2old[ll[0]]["orig"]
+                    # no +/- 1 required
+                    # output is in 1-based end-inclusive coordinates
+                    scaff_start = int(ll[3]) + int(new2old[ll[0]]["start"])
+                    scaff_end = int(ll[4]) + int(new2old[ll[0]]["start"])
+                    out.append([scaff, ll[1], ll[2], scaff_start, scaff_end] + ll[5:])
+                except KeyError:
+                    print(f"contig {ll[0]} not found in JSON file, please check")
+    return(out)
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="""
         Recombine split contigs into scaffolds, adding Ns to fill gaps
         """)
-    parser.add_argument(
-        "-s", "--scaffolds", action='store',
-        help="Fasta file containing split contigs")
-    parser.add_argument(
-        "-o", "--output", action="store",
-        help="Path to output file to write recombined scaffolds")
-    parser.add_argument(
+    parser.add_argument( # compulsory
         "-j", "--json", action='store',
         help="JSON file containing mapping of coordinates from split contigs to original scaffolds")
+    parser.add_argument( # optional
+        "-c", "--contigs", action='store',
+        help="Fasta file containing split contigs")
+    parser.add_argument( # optional
+        "-f", "--features", action='store',
+        help="Feature table in GFF format for contigs, with coordinates to be updated to recombined scaffolds")
+    parser.add_argument(
+        "-o", "--output", action="store",
+        help="Output filename prefix to write recombined scaffolds and/or modified feature table")
 
     args = parser.parse_args()
 
-    asm = SeqIO.to_dict(SeqIO.parse(args.scaffolds, 'fasta'))
     with open(args.json, "r") as fh:
-        spls = json.load(fh)
-    # assume that scaffolds do not start or end with Ns! 
-    old2new = rekey_regions_by_original_contig(spls)
-    scaff_asm = add_gaps(old2new, asm)
-    SeqIO.write([scaff_asm[scaff] for scaff in scaff_asm], args.output, 'fasta')
+        new2old = json.load(fh)
+    old2new = rekey_regions_by_original_contig(new2old) 
+    # Report updated contigs
+    if args.contigs:
+        asm = SeqIO.to_dict(SeqIO.parse(args.contigs, 'fasta'))
+        # assume that scaffolds do not start or end with Ns! 
+        scaff_asm = add_gaps(old2new, asm)
+        SeqIO.write([scaff_asm[scaff] for scaff in scaff_asm], args.output+'.scaffolds.fasta', 'fasta')
+    if args.features:
+        gff_out = renumber_features(new2old, args.features)
+        with open(args.output+'.features.gff3', "w") as fh:
+            for ll in gff_out:
+                fh.write("\t".join([str(i) for i in ll]) + "\n")

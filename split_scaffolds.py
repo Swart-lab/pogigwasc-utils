@@ -6,18 +6,6 @@ import json
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-parser = argparse.ArgumentParser(
-    description="""
-    Split scaffolds into contigs on Ns, and report coordinates of split contigs
-    """)
-parser.add_argument(
-    "-i", "--input", type=str, 
-    help="Fasta file containing contigs and scaffolds")
-parser.add_argument(
-    "-o", "--output", type=str, default="test_scaffolds_split",
-    help="Output filename prefix")
-args = parser.parse_args()
-
 
 def complement_coordinates_outside(pos : list, start : int, end : int):
     """
@@ -70,23 +58,23 @@ def scaffold2contig_coords(seq_dict):
         describing segment position on origial scaffold
     """
     new2old = {}
-    for ctg in seq_dict:
+    for scaff in seq_dict:
         # find stretches of Ns
-        nn = re.finditer(r"N+", str(seq_dict[ctg].seq))
+        nn = re.finditer(r"N+", str(seq_dict[scaff].seq))
         nn_spans = [hit.span() for hit in nn]
         if nn_spans:
-            pos_spans = complement_coordinates_outside(nn_spans, 0, len(seq_dict[ctg]))
+            pos_spans = complement_coordinates_outside(nn_spans, 0, len(seq_dict[scaff]))
             for i in range(len(pos_spans)):
-                newctg = f"{ctg}_{str(i)}"
-                new2old[newctg] = { 'orig' : ctg, 
+                newctg = f"{scaff}_{str(i)}"
+                new2old[newctg] = { 'orig' : scaff, 
                                     'start' : pos_spans[i][0],
                                     'end' : pos_spans[i][1] }
         else:
             # pass through as is
-            new2old[ctg] = {
-                'orig' : ctg,
+            new2old[scaff] = {
+                'orig' : scaff,
                 'start' : 0,
-                'end' : len(seq_dict[ctg]) } 
+                'end' : len(seq_dict[scaff]) } 
     return(new2old)
 
 
@@ -120,6 +108,19 @@ def report_split_seqs(seq_dict, new2old):
 
 
 if __name__ == "__main__": 
+
+    parser = argparse.ArgumentParser(
+        description="""
+        Split scaffolds into contigs on Ns, and report coordinates of split contigs
+        """)
+    parser.add_argument(
+        "-i", "--input", type=str, 
+        help="Fasta file containing contigs and scaffolds")
+    parser.add_argument(
+        "-o", "--output", type=str, default="test_scaffolds_split",
+        help="Output filename prefix")
+    args = parser.parse_args()
+
     asm = SeqIO.to_dict(SeqIO.parse(args.input, 'fasta'))
     new2old = scaffold2contig_coords(asm)
     asm_new = report_split_seqs(asm, new2old)

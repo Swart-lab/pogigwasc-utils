@@ -19,7 +19,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-def get_negative_coordinates(pos : list, start : int, end : int):
+def complement_coordinates_outside(pos : list, start : int, end : int):
     """
     Get coordinates for the complement to a set of regions
 
@@ -42,10 +42,11 @@ def get_negative_coordinates(pos : list, start : int, end : int):
         tuples of start,end coordinates of regions complementary to those in pos
     """
     pos = sorted(pos, key = lambda x : x[0]) # sort by start coordinate
-    segs = [0]
+    segs = [start]
     for (segstart, segend) in pos:
         segs.extend([segstart, segend])
     segs.append(end)
+
     return(list(zip(segs[::2], segs[1::2])))
 
 
@@ -74,7 +75,7 @@ def scaffold2contig_coords(seq_dict):
         nn = re.finditer(r"N+", str(seq_dict[ctg].seq))
         nn_spans = [hit.span() for hit in nn]
         if nn_spans:
-            pos_spans = get_negative_coordinates(nn_spans, 0, len(seq_dict[ctg]))
+            pos_spans = complement_coordinates_outside(nn_spans, 0, len(seq_dict[ctg]))
             for i in range(len(pos_spans)):
                 newctg = f"{ctg}_{str(i)}"
                 new2old[newctg] = { 'orig' : ctg, 

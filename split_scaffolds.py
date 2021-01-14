@@ -6,21 +6,40 @@ import json
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input", type=str, 
+parser = argparse.ArgumentParser(
+    description="""
+    Split scaffolds into contigs on Ns, and report coordinates of split contigs
+    """)
+parser.add_argument(
+    "-i", "--input", type=str, 
     help="Fasta file containing contigs and scaffolds")
-parser.add_argument("-o", "--output", type=str, default="test_scaffolds_split",
+parser.add_argument(
+    "-o", "--output", type=str, default="test_scaffolds_split",
     help="Output filename prefix")
 args = parser.parse_args()
 
 
 def get_negative_coordinates(pos : list, start : int, end : int):
     """
-    get coordinates for the complement to a set of regions
+    Get coordinates for the complement to a set of regions
 
     Regions are defined by a list of pairs of tuples. In addition the start and
     end coordinate for the encompassing region must be provided. Assume that
     coordinates are 0-based end-exclusive (python convention).
+
+    Parameters
+    ----------
+    pos : list
+        list of pairs of tuples defining start,end coordinates for regions
+    start : int
+        start position of entire region (should be lower than min value in pos)
+    end : int
+        end position of entire region (should be higher than max value in pos)
+
+    Returns
+    -------
+    list
+        tuples of start,end coordinates of regions complementary to those in pos
     """
     pos = sorted(pos, key = lambda x : x[0]) # sort by start coordinate
     segs = [0]
@@ -40,8 +59,8 @@ def scaffold2contig_coords(seq_dict):
     Parameters
     ----------
     seq_dict : dict
-        Dict of Bio.SeqRecord objects representing scaffolds of interest, keyed by
-        scaffold name
+        Dict of Bio.SeqRecord objects representing scaffolds of interest, keyed
+        by scaffold name
 
     Returns
     -------
@@ -63,7 +82,10 @@ def scaffold2contig_coords(seq_dict):
                                     'end' : pos_spans[i][1] }
         else:
             # pass through as is
-            new2old[ctg] = { 'orig' : ctg, 'start' : 0, 'end' : len(seq_dict[ctg]) } 
+            new2old[ctg] = {
+                'orig' : ctg,
+                'start' : 0,
+                'end' : len(seq_dict[ctg]) } 
     return(new2old)
 
 
@@ -75,6 +97,10 @@ def report_split_seqs(seq_dict, new2old):
     seq_dict : dict
     new2old : dict
         Output from scaffold2contig_coords()
+
+    Returns
+    list
+        SeqRecord objects for contigs split from scaffolds
     """
     seqlist = []
     for ctg_id in new2old:
@@ -86,6 +112,8 @@ def report_split_seqs(seq_dict, new2old):
             id = ctg_id,
             name = ctg_id,
             description = "")
+        # explicit empty description field else in output file appears as
+        # 'unknown'
         seqlist.append(ctg)
     return(seqlist)
 

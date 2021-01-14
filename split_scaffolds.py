@@ -121,8 +121,8 @@ def report_split_seqs(seq_dict, new2old):
 
 if __name__ == "__main__": 
     asm = SeqIO.to_dict(SeqIO.parse(args.input, 'fasta'))
-    spls = scaffold2contig_coords(asm)
-    asm_new = report_split_seqs(asm, spls)
+    new2old = scaffold2contig_coords(asm)
+    asm_new = report_split_seqs(asm, new2old)
     SeqIO.write(asm_new, f"{args.output}.fasta", "fasta")
     with open(f"{args.output}.json", "w") as fh:
-        fh.write(json.dumps(spls, indent=2))
+        fh.write(json.dumps(new2old, indent=2))

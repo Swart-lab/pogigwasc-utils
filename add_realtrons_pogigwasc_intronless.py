@@ -216,7 +216,7 @@ def create_parent_genes(features):
     return(genes)
 
 
-def segment_cds_with_introns(genes, introns, intron_parents, conflict_features):
+def segment_cds_with_introns(genes, introns, intron_parents, orphan_introns, conflict_features):
     out = []
     for seqid in genes:
         # Split CDS features into segments and correct phase
@@ -250,7 +250,7 @@ def segment_cds_with_introns(genes, introns, intron_parents, conflict_features):
                                 seg_coords.append(introns[seqid][intron_id]['end']+1)
                                 # add gene as parent to this intron
                                 introns[seqid][intron_id]['Parent'] = geneid
-                            seg_coords.append(features[seqid][feature_id]['end'])
+                            seg_coords.append(genes[seqid][geneid][feature_id]['end'])
 
                             # start and end coords as a list for each segment
                             starts = seg_coords[::2]
@@ -376,7 +376,7 @@ if __name__ == '__main__':
     # create parent gene features
     genes = create_parent_genes(features)
     # segment features that are interrupted by introns
-    segment_cds_with_introns(genes, introns, intron_parents, conflict_features)
+    segment_cds_with_introns(genes, introns, intron_parents, orphan_introns, conflict_features)
     # write data in GFF format
     out = []
     for seqid in genes:

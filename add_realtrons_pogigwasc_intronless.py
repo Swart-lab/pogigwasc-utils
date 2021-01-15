@@ -3,6 +3,7 @@
 import re
 from collections import defaultdict
 import argparse
+import json
 
 GFF_KEYS = ['seqid','source','type','start','end','score','strand','phase','attributes']
 
@@ -410,6 +411,8 @@ if __name__ == '__main__':
         help="Pogigwasc intronless-mode gene predictions, GFF3 file")
     parser.add_argument("--output", action='store', type=str,
         help="Prefix for output files")
+    parser.add_argument("--dump", action='store_true',
+        help="Dump intermediate files to JSON for troubleshooting")
     args = parser.parse_args()
 
     # import data
@@ -442,3 +445,14 @@ if __name__ == '__main__':
         for line in out:
             fh.write("\t".join([str(i) for i in line]))
             fh.write("\n")
+    if args.dump:
+        with open(args.output + '.dump.genes.json', "w") as fh:
+            fh.write(json.dumps(genes, indent=2))
+        with open(args.output + '.dump.introns.json', "w") as fh:
+            fh.write(json.dumps(introns, indent=2))
+        with open(args.output + '.dump.intron_parents.json', "w") as fh:
+            fh.write(json.dumps(intron_parents, indent=2))
+        with open(args.output + '.dump.orphan_introns.json', "w") as fh:
+            fh.write(json.dumps(orphan_introns, indent=2))
+        with open(args.output + '.dump.conflict_features.json', "w") as fh:
+            fh.write(json.dumps(conflict_features, indent=2))

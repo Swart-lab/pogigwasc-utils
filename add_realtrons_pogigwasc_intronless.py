@@ -41,8 +41,26 @@ def length2phase(l: int, p=0):
     return(f2p[frame])
 
 
+def gff2py_coords(start:int, end:int):
+    """Convert GFF-type 1-based end-inclusive coords to python 0-based end-exclusive"""
+    # simple issue but really annoying to keep in head
+    # TODO: zero-length features
+    if end < start:
+        print("invalid GFF coordinates because end {str(end)} before start {str(start)}")
+    else:
+        return(start-1, end)
+
+def py2gff_coords(start:int, end:int):
+    # TODO: zero-length features
+    if end < start:
+        print("invalid coordinates because end {str(end)} before start (str{start})")
+    else:
+        return(start+1, end)
+
+
 def read_pogigwasc_gff(file):
     # import minus_introns feature table
+    # convert GFF to python coordinates
     counter = defaultdict( # contig
         lambda: defaultdict( # feature_type
             int)) # running count
@@ -54,6 +72,7 @@ def read_pogigwasc_gff(file):
             if not re.match("\#", line):
                 spl = line.rstrip().split("\t")
                 # pogigwasc doesn't report attributes column, and leaves score and phase undefined
+                spl[3], spl[4] = gff2py_coords(int( spl[3] ), int( spl[4] ))
                 [seqid,source,feature_type,start,end,score,strand,phase] = spl
                 counter[seqid][feature_type] += 1
                 feature_id = "_".join([seqid, feature_type, str(counter[seqid][feature_type])])
@@ -78,6 +97,7 @@ def read_realtrons_gff(file):
         for line in fh:
             if not re.match("\#", line):
                 spl = line.rstrip().split("\t")
+                spl[3], spl[4] = gff2py_coords(int( spl[3] ), int( spl[4] ))
                 [seqid,source,feature_type,start,end,score,strand,phase,attributes] = spl
                 attrs = attributes.rstrip(';').split(';')
                 attrdict = {a.split('=')[0] : a.split('=')[1] for a in attrs}
@@ -115,18 +135,35 @@ def update_feature_coords_realtrons(features, introns):
 
             # Adjust coordinates
             for intron_id in intron_ids_sorted:
-                intron_len = introns[seqid][intron_id]['end'] - introns[seqid][intron_id]['start'] + 1 # plus 1 because end-inclusive
+                intron_len = introns[seqid][intron_id]['end'] - introns[seqid][intron_id]['start']
 
                 for feature_id in feature_ids_sorted:
+                    # sanity check
+                    orig_feature_length = features[seqid][feature_id]['end'] - features[seqid][feature_id]['start']
+                    # sequentially iterate through features and update coordinates
+                    # assume that no two pogigwasc features share the same start coordinate
                     if features[seqid][feature_id]['start'] > introns[seqid][intron_id]['start']:
-                        # feature outside of intron: push whole feature forward
+                        # feature to right of intron: push whole feature forward
                         features[seqid][feature_id]['start'] += intron_len
                         features[seqid][feature_id]['end'] += intron_len
-                    elif features[seqid][feature_id]['end'] >= introns[seqid][intron_id]['start']:
-                        # start of intron within un-adjusted coordinates of feature
-                        # keep start coordinate, push end coordinate forward
-                        features[seqid][feature_id]['end'] += intron_len
-                        intron_parents[seqid][feature_id].append(intron_id)
+                    # in edge case where feature start == intron start, the
+                    # resulting feature will have correct length, but the 
+                    # first feature segment will have zero length
+                    # however we want to record the corresponding gene as parent
+                    # to the intron
+                    else:
+                        if features[seqid][feature_id]['end'] >= introns[seqid][intron_id]['start']:
+                            # feature start to left of intron, feature start to right of intron
+                            # i.e. intron contained in feature, need to adjust:
+                            # keep start coordinate, push end coordinate forward
+                            features[seqid][feature_id]['end'] += intron_len
+                            intron_parents[seqid][feature_id].append(intron_id)
+                            # sanity check
+                            if features[seqid][feature_id]['end'] - features[seqid][feature_id]['start'] != orig_feature_length + intron_len:
+                                print("feature length does not match after adding introns")
+                        else:
+                            # entire feature to left of intron
+                            pass
 
         except KeyError:
             print(f"seqid {seqid} in intron gff not found in feature gff")
@@ -144,7 +181,7 @@ def check_strand_conflict_orphan_introns(features, introns, intron_parents):
 
     for seqid in features:
         # sort introns ascending by start coordinate
-        introns_list = [ (i, introns[seqid][i]) for i in introns[seqid]]
+        introns_list = [ (i, introns[seqid][i]) for i in introns[seqid] ]
         introns_list = sorted(introns_list, key=lambda i: i[1]['start'])
         intron_ids_sorted = [i[0] for i in introns_list]
         
@@ -189,7 +226,7 @@ def create_parent_genes(features):
         for feature_id in feature_ids_sorted:
             if last_feature:
                 # adjacent features
-                if int(features[seqid][last_feature]['end']) + 1 == int(features[seqid][feature_id]['start']):
+                if int(features[seqid][last_feature]['end']) == int(features[seqid][feature_id]['start']):
                     # either: CDS followed by stop codon and strands both positive
                     # or: stop codon followed by CDS, and strands both negative
                     if (features[seqid][last_feature]['type'] == 'CDS' \
@@ -225,7 +262,6 @@ def segment_cds_with_introns(genes, introns, intron_parents, orphan_introns, con
         # Report features in GFF format
         for geneid in genes[seqid]:
             for feature_id in genes[seqid][geneid]:
-                
                 # Features that contain introns
                 if feature_id in intron_parents[seqid]:
 
@@ -245,9 +281,8 @@ def segment_cds_with_introns(genes, introns, intron_parents, orphan_introns, con
                             seg_coords = [genes[seqid][geneid][feature_id]['start']]
                             for intron_id in intron_parents[seqid][feature_id]:
                                 # the introns should be present in coordinate sort order
-                                # +/- 1 because GFF coordinates are end-inclusive
-                                seg_coords.append(introns[seqid][intron_id]['start']-1)
-                                seg_coords.append(introns[seqid][intron_id]['end']+1)
+                                seg_coords.append(introns[seqid][intron_id]['start'])
+                                seg_coords.append(introns[seqid][intron_id]['end'])
                                 # add gene as parent to this intron
                                 introns[seqid][intron_id]['Parent'] = geneid
                             seg_coords.append(genes[seqid][geneid][feature_id]['end'])
@@ -311,23 +346,33 @@ def dict2gff(feature: dict, feature_id, parent_id=None):
             attrs[key] = feature[key]
             attrkeys.append(key) # to ensure that ID and Parent come first
     attributes_string = ";".join([str(key)+"="+str(attrs[key]) for key in attrkeys if key in attrs])
-    
+
     if type(feature['start']) is list:
         # multi-segment feature, all fields identical except start/end/phase coords
         for i in range(len(feature['start'])):
-            line = [feature['seqid'], feature['source'], feature['type'],
-                    feature['start'][i], 
-                    feature['end'][i],
-                    feature['score'], feature['strand'],
-                    feature['phase'][i],
-                    attributes_string]
-            out.append(line)
+            # skip zero-length feature segments
+            if feature['end'][i] > feature['start'][i]:
+                newstart, newend = py2gff_coords(feature['start'][i], feature['end'][i])
+                line = [feature['seqid'], feature['source'], feature['type'],
+                        newstart, newend,
+                        feature['score'], feature['strand'],
+                        feature['phase'][i],
+                        attributes_string]
+                out.append(line)
+            elif feature['start'][i] == feature['end'][i]:
+                print(f"Skipping zero-length feature segment { str(feature['start'][i]) } for feature {feature_id}")
+            else:
+                print(f"Start before end for coords { str(feature['start'][i]) } { str(feature['end'][i]) } for feature {feature_id}")
 
     else:
-        line = [feature[col] for col in GFF_KEYS[0:8]]
-        line.append(attributes_string)
+        newstart, newend = py2gff_coords(feature['start'], feature['end'])
+        line = [feature['seqid'], feature['source'], feature['type'],
+                newstart, newend,
+                feature['score'], feature['strand'],
+                feature['phase'],
+                attributes_string]
         out.append(line)
-    
+
     return(out)
 
 

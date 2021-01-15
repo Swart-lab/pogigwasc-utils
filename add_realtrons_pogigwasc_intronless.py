@@ -363,6 +363,8 @@ if __name__ == '__main__':
         help="Realtrons GFF3 file")
     parser.add_argument("--features", action='store', type=str, 
         help="Pogigwasc intronless-mode gene predictions, GFF3 file")
+    parser.add_argument("--output", action='store', type=str,
+        help="Prefix for output files")
     args = parser.parse_args()
 
     # import data
@@ -391,5 +393,7 @@ if __name__ == '__main__':
     # sort by coordinates
     # negative sort by end coordinates so that enclosing features are listed before their components
     out = sorted(out, key=lambda x: (int(x[3]), -int(x[4])))
-    for line in out:
-        print("\t".join([str(i) for i in line]))
+    with open(args.output + ".add_realtrons.gff3", "w") as fh:
+        for line in out:
+            fh.write("\t".join([str(i) for i in line]))
+            fh.write("\n")

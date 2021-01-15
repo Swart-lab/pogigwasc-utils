@@ -4,13 +4,6 @@ import re
 from collections import defaultdict
 import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--introns", action='store', type=str, 
-    help="Realtrons GFF3 file")
-parser.add_argument("--features", action='store', type=str, 
-    help="Pogigwasc intronless-mode gene predictions, GFF3 file")
-args = parser.parse_args()
-
 GFF_KEYS = ['seqid','source','type','start','end','score','strand','phase','attributes']
 
 
@@ -338,7 +331,7 @@ def dict2gff(feature: dict, feature_id, parent_id=None):
     return(out)
 
 
-def find_gene_limits(gene):
+def find_gene_limits(gene, geneid):
     starts = []
     ends = []
     strands = []
@@ -364,6 +357,14 @@ def find_gene_limits(gene):
 
 
 if __name__ == '__main__':
+    # parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--introns", action='store', type=str, 
+        help="Realtrons GFF3 file")
+    parser.add_argument("--features", action='store', type=str, 
+        help="Pogigwasc intronless-mode gene predictions, GFF3 file")
+    args = parser.parse_args()
+
     # import data
     features = read_pogigwasc_gff(args.features)
     introns = read_realtrons_gff(args.introns)
@@ -378,7 +379,7 @@ if __name__ == '__main__':
     out = []
     for seqid in genes:
         for geneid in genes[seqid]:
-            gene_start, gene_end, gene_strand = find_gene_limits(genes[seqid][geneid])
+            gene_start, gene_end, gene_strand = find_gene_limits(genes[seqid][geneid], geneid)
             out.append([seqid, 'prediction', 'gene', 
                         gene_start, gene_end, '.', gene_strand, '.', 
                         f'ID={geneid}'])

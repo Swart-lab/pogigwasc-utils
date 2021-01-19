@@ -440,7 +440,7 @@ if __name__ == '__main__':
             out.extend(dict2gff(introns[seqid][intron_id], intron_id))
     # sort by coordinates
     # negative sort by end coordinates so that enclosing features are listed before their components
-    out = sorted(out, key=lambda x: (int(x[3]), -int(x[4])))
+    out = sorted(out, key=lambda x: (x[0], int(x[3]), -int(x[4])))
     with open(args.output + ".add_realtrons.gff3", "w") as fh:
         for line in out:
             fh.write("\t".join([str(i) for i in line]))

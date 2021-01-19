@@ -430,6 +430,7 @@ if __name__ == '__main__':
     for seqid in genes:
         for geneid in genes[seqid]:
             gene_start, gene_end, gene_strand = find_gene_limits(genes[seqid][geneid], geneid)
+            gene_start, gene_end = py2gff_coords(gene_start, gene_end)
             out.append([seqid, 'prediction', 'gene', 
                         gene_start, gene_end, '.', gene_strand, '.', 
                         f'ID={geneid}'])

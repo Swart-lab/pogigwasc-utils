@@ -45,7 +45,7 @@ def length2phase(l: int, p=0):
 def gff2py_coords(start:int, end:int):
     """Convert GFF-type 1-based end-inclusive coords to python 0-based end-exclusive"""
     # simple issue but really annoying to keep in head
-    # TODO: zero-length features
+    # TODO: zero-length features and raise error properly
     if end < start:
         print("invalid GFF coordinates because end {str(end)} before start {str(start)}")
     else:
@@ -116,7 +116,7 @@ def read_realtrons_gff(file):
 def update_feature_coords_realtrons(features, introns):
     # Adjust coordinates of features with introns added
     # Record features that contain introns
-    # features is changed in-place
+    # features object is changed in-place
 
     intron_parents = defaultdict( # seqid
         lambda: defaultdict( # feature id
@@ -142,7 +142,7 @@ def update_feature_coords_realtrons(features, introns):
                     # sanity check
                     orig_feature_length = features[seqid][feature_id]['end'] - features[seqid][feature_id]['start']
                     # sequentially iterate through features and update coordinates
-                    # assume that no two pogigwasc features share the same start coordinate
+                    # assume that no two genes share the same start coordinate
                     if features[seqid][feature_id]['start'] > introns[seqid][intron_id]['start']:
                         # feature to right of intron: push whole feature forward
                         features[seqid][feature_id]['start'] += intron_len
@@ -174,6 +174,7 @@ def update_feature_coords_realtrons(features, introns):
 
 def check_strand_conflict_orphan_introns(features, introns, intron_parents):
     # Report adjusted coordinates
+    # TODO: what about features that encompass both conflicting and non-conflicting introns?
 
     orphan_introns = defaultdict(list)
     conflict_features = defaultdict( # seqid
@@ -185,7 +186,7 @@ def check_strand_conflict_orphan_introns(features, introns, intron_parents):
         introns_list = [ (i, introns[seqid][i]) for i in introns[seqid] ]
         introns_list = sorted(introns_list, key=lambda i: i[1]['start'])
         intron_ids_sorted = [i[0] for i in introns_list]
-        
+
         # Check for mismatched strands in intron vs. CDS
         for feature_id in intron_parents[seqid]:
             parent_strand = features[seqid][feature_id]['strand']
@@ -205,11 +206,14 @@ def check_strand_conflict_orphan_introns(features, introns, intron_parents):
 def create_parent_genes(features):
     # Associate stop_codons with adjacent attached CDSs in parent gene objects
     # add attributes field to the feature table
-    # assumes that every CDS is adjacent to a stop codon,
-    # and that a gene is composed of no more than one CDS+stop codon
+    # assumes that:
+    #  - every CDS is adjacent to a stop codon,
+    #  - strand of CDS and adjacent stop codon always the same
+    #  - that a gene is composed of no more than one CDS+stop codon
 
     # Run this after update_feature_coords_realtrons()
-    # modifies features object in-place
+    # modifies `features` object in-place
+    # returns `genes` object
 
     geneid_counter = defaultdict(int)
     genes = defaultdict( # seqid
@@ -233,17 +237,27 @@ def create_parent_genes(features):
                     if (features[seqid][last_feature]['type'] == 'CDS' \
                             and features[seqid][feature_id]['type'] == 'stop_codon' \
                             and features[seqid][last_feature]['strand'] == '+' \
-                            and features[seqid][feature_id]['strand'] == '+') \
-                        or (features[seqid][last_feature]['type'] == 'stop_codon' \
-                            and features[seqid][feature_id]['type'] == 'CDS' \
-                            and features[seqid][last_feature]['strand'] == '-' \
-                            and features[seqid][feature_id]['strand'] == '-'):
+                            and features[seqid][feature_id]['strand'] == '+'):
+                        # extend CDS to encompass stop codon limits
+                        features[seqid][last_feature]['end'] = features[seqid][feature_id]['end']
                         # update gene counter
                         geneid_counter[seqid] += 1
                         geneid = "_".join([seqid, 'gene', str(geneid_counter[seqid])])
                         # add feature ID and Parent gene id to attributes field
-                        genes[seqid][geneid] = { feature_id : features[seqid][feature_id],
-                                                 last_feature: features[seqid][last_feature]}
+                        genes[seqid][geneid] = { feature_id : 1,
+                                                 last_feature: 1}
+                    elif (features[seqid][last_feature]['type'] == 'stop_codon' \
+                        and features[seqid][feature_id]['type'] == 'CDS' \
+                        and features[seqid][last_feature]['strand'] == '-' \
+                        and features[seqid][feature_id]['strand'] == '-'):
+                        # extend CDS to encompass stop codon limits
+                        features[seqid][feature_id]['start'] = features[seqid][last_feature]['start']
+                        # update gene counter
+                        geneid_counter[seqid] += 1
+                        geneid = "_".join([seqid, 'gene', str(geneid_counter[seqid])])
+                        # add feature ID and Parent gene id to attributes field
+                        genes[seqid][geneid] = { feature_id : 1,
+                                                 last_feature: 1}
                     else:
                         print("adjacent features but apparently unrelated")
                 # Update previous feature
@@ -254,8 +268,9 @@ def create_parent_genes(features):
     return(genes)
 
 
-def segment_cds_with_introns(genes, introns, intron_parents, orphan_introns, conflict_features):
-    out = []
+def segment_cds_with_introns(genes, features, introns, intron_parents, orphan_introns, conflict_features):
+    # Changes `features` and `introns` in place
+
     for seqid in genes:
         # Split CDS features into segments and correct phase
         #  pogigwasc in intronless mode produces CDS features with phase 0 (check!)
@@ -269,34 +284,34 @@ def segment_cds_with_introns(genes, introns, intron_parents, orphan_introns, con
                     # strandedness of CDS and intron features conflict
                     if feature_id in conflict_features[seqid]:
                         # Note that strand is conflicting
-                        genes[seqid][geneid][feature_id]['Note'] = 'strand_conflict'
+                        features[seqid][feature_id]['Note'] = 'strand_conflict'
                         # report overlapping introns as 'intron_orphan' features
                         for conflict_intron in conflict_features[seqid][feature_id]:
                             introns[seqid][conflict_intron]['Note'] = 'orphan'
 
                     else:
                         # check if CDS feature (or start_codon or stop_codon) and split if necessary
-                        if genes[seqid][geneid][feature_id]['type'] in ['CDS','start_codon','stop_codon']:
+                        if features[seqid][feature_id]['type'] in ['CDS', 'stop_codon']:
                             # get coordinates of the split CDS feature segments,
                             # interrupted by introns
-                            seg_coords = [genes[seqid][geneid][feature_id]['start']]
+                            seg_coords = [features[seqid][feature_id]['start']]
                             for intron_id in intron_parents[seqid][feature_id]:
                                 # the introns should be present in coordinate sort order
                                 seg_coords.append(introns[seqid][intron_id]['start'])
                                 seg_coords.append(introns[seqid][intron_id]['end'])
                                 # add gene as parent to this intron
                                 introns[seqid][intron_id]['Parent'] = geneid
-                            seg_coords.append(genes[seqid][geneid][feature_id]['end'])
+                            seg_coords.append(features[seqid][feature_id]['end'])
 
                             # start and end coords as a list for each segment
                             starts = seg_coords[::2]
                             ends = seg_coords[1::2]
                             segs = []
                             # forward strand
-                            if genes[seqid][geneid][feature_id]['strand'] == '+':
+                            if features[seqid][feature_id]['strand'] == '+':
                                 segs = list(zip(starts,ends))
                             # reverse strand: work backwards
-                            elif genes[seqid][geneid][feature_id]['strand'] == '-':
+                            elif features[seqid][feature_id]['strand'] == '-':
                                 segs = reversed(list(zip(starts,ends)))
                             # get list of phases
                             # initialize phase, each intronless CDS starts from 0
@@ -308,20 +323,20 @@ def segment_cds_with_introns(genes, introns, intron_parents, orphan_introns, con
                                 #update phase for next segment
                                 phase = length2phase(seglen, phase)
                             # reverse because segments are iterated in reverse order
-                            if genes[seqid][geneid][feature_id]['strand'] == '-':
+                            if features[seqid][feature_id]['strand'] == '-':
                                 phases = list(reversed(phases))
                             # replace feature 'start', 'end', and 'phase' fields with lists
-                            genes[seqid][geneid][feature_id]['start'] = starts
-                            genes[seqid][geneid][feature_id]['end'] = ends
-                            genes[seqid][geneid][feature_id]['phase'] = phases
+                            features[seqid][feature_id]['start'] = starts
+                            features[seqid][feature_id]['end'] = ends
+                            features[seqid][feature_id]['phase'] = phases
                         else:
                             print(f"Non CDS feature {feature_id} overlaps with empirical intron")
                             # this should never happen because update_feature_coords_realtrons() 
                             # is called with pogigwasc feature table which has only CDS and stop_codons
                 else:
                     # intronless feature, report as-is, change phase from '.' to 0 if CDS
-                    if genes[seqid][geneid][feature_id]['type'] == 'CDS':
-                        genes[seqid][geneid][feature_id]['phase'] = 0
+                    if features[seqid][feature_id]['type'] == 'CDS':
+                        features[seqid][feature_id]['phase'] = 0
         # add orphan introns
         for orphan_id in orphan_introns[seqid]:
             introns[seqid][orphan_id]['Note'] = 'orphan'
@@ -377,21 +392,29 @@ def dict2gff(feature: dict, feature_id, parent_id=None):
     return(out)
 
 
-def find_gene_limits(gene, geneid):
+def flatten_list_of_lists(l : list):
+    # given a list containing both lists and non-list elements, flatten to list
+    # of elements
+    out = []
+    for i in l:
+        if type(i) is list:
+            out.extend(i)
+        else:
+            out.append(i)
+    return(out)
+
+
+def find_gene_limits(genes, seqid, geneid, features):
     starts = []
     ends = []
     strands = []
-    for feature_id in gene:
-        if gene[feature_id]['strand'] != '.': # skip features with undefined strand
-            strands.append(gene[feature_id]['strand'])
-        if type(gene[feature_id]['start']) is list:
-            starts.extend(gene[feature_id]['start'])
-            ends.extend(gene[feature_id]['end'])
-        elif type(gene[feature_id]['start']) is int or str:
-            starts.append(gene[feature_id]['start'])
-            ends.append(gene[feature_id]['start'])
-    starts = [int(i) for i in starts]
-    ends = [int(i) for i in ends]
+    for feature_id in genes[seqid][geneid]:
+        if features[seqid][feature_id]['strand'] != '.': # skip features with undefined strand
+            strands.append(features[seqid][feature_id]['strand'])
+            starts.append(features[seqid][feature_id]['start'])
+            ends.append(features[seqid][feature_id]['end'])
+    starts = [int(i) for i in flatten_list_of_lists( starts )]
+    ends = [int(i) for i in flatten_list_of_lists( ends )]
     strands = set(strands)
     if len(strands) > 1:
         print(f'strand conflict within component features of gene {geneid}')
@@ -408,7 +431,11 @@ if __name__ == '__main__':
     parser.add_argument("--introns", action='store', type=str, 
         help="Realtrons GFF3 file")
     parser.add_argument("--features", action='store', type=str, 
-        help="Pogigwasc intronless-mode gene predictions, GFF3 file")
+        help="""
+        Pogigwasc intronless-mode gene predictions, GFF3 file.
+        Assumes no overlapping features, only `CDS` and `stop_codon` features,
+        and stop codons not contained in adjacent CDS features.
+        """)
     parser.add_argument("--output", action='store', type=str,
         help="Prefix for output files")
     parser.add_argument("--dump", action='store_true',
@@ -418,24 +445,24 @@ if __name__ == '__main__':
     # import data
     features = read_pogigwasc_gff(args.features)
     introns = read_realtrons_gff(args.introns)
+    # create parent gene features
+    genes = create_parent_genes(features)
     # update coordinates of intron-minus gene predictions after introns re-inserted
     intron_parents = update_feature_coords_realtrons(features, introns)
     orphan_introns, conflict_features = check_strand_conflict_orphan_introns(features, introns, intron_parents)
-    # create parent gene features
-    genes = create_parent_genes(features)
     # segment features that are interrupted by introns
-    segment_cds_with_introns(genes, introns, intron_parents, orphan_introns, conflict_features)
+    segment_cds_with_introns(genes, features, introns, intron_parents, orphan_introns, conflict_features)
     # write data in GFF format
     out = []
     for seqid in genes:
         for geneid in genes[seqid]:
-            gene_start, gene_end, gene_strand = find_gene_limits(genes[seqid][geneid], geneid)
+            gene_start, gene_end, gene_strand = find_gene_limits(genes, seqid, geneid, features)
             gene_start, gene_end = py2gff_coords(gene_start, gene_end)
-            out.append([seqid, 'prediction', 'gene', 
+            out.append([seqid, 'predicted', 'gene', 
                         gene_start, gene_end, '.', gene_strand, '.', 
                         f'ID={geneid}'])
             for feature_id in genes[seqid][geneid]:
-                out.extend(dict2gff(genes[seqid][geneid][feature_id], feature_id, geneid))
+                out.extend(dict2gff(features[seqid][feature_id], feature_id, geneid))
     for seqid in introns:
         for intron_id in introns[seqid]:
             out.extend(dict2gff(introns[seqid][intron_id], intron_id))

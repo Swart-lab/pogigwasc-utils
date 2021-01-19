@@ -1,0 +1,10 @@
+#gff-version 3
+contig_1	test	intron	47	67	.	+	.	ID=intron1
+contig_1	test	intron	74	83	.	+	.	ID=intron1a
+contig_1	test	intron	103	118	.	+	.	ID=intron1b
+contig_1	test	intron	123	150	.	-	.	ID=intron_orphan
+# contig_1	test	intron	438	448	.	-	.	ID=intron2
+# contig_1	test	intron	864	874	.	-	.	ID=intron3
+# contig_2	test	intron	443	453	.	+	.	ID=intron4
+# contig_2	test	intron	841	854	.	.	.	ID=intron5
+# contig_3	test	intron	100	130	.	.	.	ID=intron6

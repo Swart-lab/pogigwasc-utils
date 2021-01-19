@@ -1,0 +1,7 @@
+#gff-version 3
+contig_1	test	CDS	47	70	.	+	.
+contig_1	test	stop_codon	71	73	.	+	.
+# contig_1	test	CDS	47	80	.	+	.
+# contig_1	test	stop_codon	81	83	.	+	.
+contig_1	test	stop_codon	97	99	.	-	.
+contig_1	test	CDS	100	130	.	-	.

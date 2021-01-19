@@ -2,7 +2,10 @@ Utilities for working with pogigwasc
 ====================================
 
 Scripts to help prepare data for the pogigwasc gene predictor, and to reformat
-or process output files. Requires python 3.6+, Biopython
+or process output files, and to work with output from 
+[Intronarrator](https://github.com/Swart-lab/Intronarrator).
+
+Requires python 3.6+, Biopython
 
 [pogigwasc](https://github.com/Swart-lab/pogigwasc) is a gene predictor for
 eukaryotic genomes with ambiguous stop codons, developed by David Vetter.

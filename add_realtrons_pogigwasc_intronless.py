@@ -105,10 +105,6 @@ def create_parent_genes(features):
     #  - strand of CDS and adjacent stop codon always the same
     #  - that a gene is composed of no more than one CDS+stop codon
 
-    # Run this after update_feature_coords_realtrons()
-    # modifies `features` object in-place
-    # returns `genes` object
-
     geneid_counter = defaultdict(int)
     genes = defaultdict( # seqid
         lambda: defaultdict( # geneid

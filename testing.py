@@ -2,6 +2,12 @@
 
 import re
 import unittest
+from sys import argv
+import os.path
+
+# Prefix to folder where testing.py is located
+# subfolder test/ containing test files should be in the same folder
+prefix = os.path.abspath(os.path.dirname(argv[0]))
 
 from add_realtrons_pogigwasc_intronless import *
 
@@ -38,7 +44,7 @@ class Test_add_realtrons_pogigwasc_intronless(unittest.TestCase):
     def test_create_parent_genes(self):
         # read GFF and convert coords to python type
         # original: (47,70), (71,73)
-        features = read_pogigwasc_gff('test/test_pogigwasc_intronless.gff3')
+        features = read_pogigwasc_gff(os.path.join(prefix,'test/test_pogigwasc_intronless.gff3'))
         self.assertEqual( features['contig_1']['contig_1_CDS_1']['start'], 46 )
         self.assertEqual( features['contig_1']['contig_1_CDS_1']['end'], 70 )
         self.assertEqual( features['contig_1']['contig_1_stop_codon_1']['start'], 70 )
@@ -52,10 +58,10 @@ class Test_add_realtrons_pogigwasc_intronless(unittest.TestCase):
 
     def test_add_introns_to_features(self):
         # read features
-        features = read_pogigwasc_gff('test/test_pogigwasc_intronless.gff3')
+        features = read_pogigwasc_gff(os.path.join(prefix,'test/test_pogigwasc_intronless.gff3'))
         genes = create_parent_genes(features)
         # read introns 
-        introns = read_realtrons_gff('test/test_realtrons.gff3')
+        introns = read_realtrons_gff(os.path.join(prefix,'test/test_realtrons.gff3'))
 
         # identify parent features for introns and extend features
         intron_parents = update_feature_coords_realtrons(features, introns)
@@ -92,10 +98,10 @@ class Test_add_realtrons_pogigwasc_intronless(unittest.TestCase):
 
     def test_find_gene_limits(self):
         # read features
-        features = read_pogigwasc_gff('test/test_pogigwasc_intronless.gff3')
+        features = read_pogigwasc_gff(os.path.join(prefix,'test/test_pogigwasc_intronless.gff3'))
         genes = create_parent_genes(features)
         # read introns 
-        introns = read_realtrons_gff('test/test_realtrons.gff3')
+        introns = read_realtrons_gff(os.path.join(prefix,'test/test_realtrons.gff3'))
         # identify parent features for introns and extend features
         intron_parents = update_feature_coords_realtrons(features, introns)
         # identify orphan introns and conflicts

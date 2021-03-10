@@ -203,22 +203,10 @@ def segment_cds_with_introns(genes, features, introns, intron_parents, orphan_in
                             # reverse strand: work backwards
                             elif features[seqid][feature_id]['strand'] == '-':
                                 segs = reversed(list(zip(starts,ends)))
-                            # get list of phases
-                            # initialize phase, each intronless CDS starts from 0
-                            phase = 0
-                            phases = []
-                            for (i,j) in segs:
-                                seglen = j - i + 1
-                                phases.append(phase)
-                                #update phase for next segment
-                                phase = length2phase(seglen, phase)
-                            # reverse because segments are iterated in reverse order
-                            if features[seqid][feature_id]['strand'] == '-':
-                                phases = list(reversed(phases))
                             # replace feature 'start', 'end', and 'phase' fields with lists
                             features[seqid][feature_id]['start'] = starts
                             features[seqid][feature_id]['end'] = ends
-                            features[seqid][feature_id]['phase'] = phases
+                            features[seqid][feature_id]['phase'] = [0] * len(starts)
                         else:
                             print(f"Non CDS feature {feature_id} overlaps with empirical intron")
                             # this should never happen because update_feature_coords_realtrons() 
@@ -233,6 +221,25 @@ def segment_cds_with_introns(genes, features, introns, intron_parents, orphan_in
 
 
 def dict2gff(feature: dict, feature_id, parent_id=None):
+    """Convert dict of features to lists for GFF output
+
+    If feature is multisegmented, i.e. fields 'start', 'end', and 'phase' are
+    list objects, then report each segment as separate line. 
+
+    Parameters
+    ----------
+    feature : dict
+        Features keyed by GFF keys
+    feature_id : str
+        Feature ID to use in ID field of attributes
+    parent_id : str
+        Parent feature ID to use in Parent field of attributes
+
+    Returns
+    -------
+    list
+        list of lists, containing 9 fields of GFF line
+    """
     # return list of lists of GFF fields
     out = []
     #attrs = {'ID': feature_id, 'Parent' : parent_id}

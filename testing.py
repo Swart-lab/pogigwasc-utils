@@ -85,6 +85,8 @@ class Test_add_realtrons_pogigwasc_intronless(unittest.TestCase):
             [46, 67, 83, 118])
         self.assertEqual( features['contig_1']['contig_1_CDS_1']['end'],
             [46, 73, 102, 120])
+        self.assertEqual( features['contig_1']['contig_1_CDS_1']['phase'],
+            [0, 0, 0, 0])
         self.assertEqual( features['contig_1']['contig_1_stop_codon_1']['start'],
             [101, 118])
         self.assertEqual( features['contig_1']['contig_1_stop_codon_1']['end'],

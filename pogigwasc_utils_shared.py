@@ -85,7 +85,8 @@ def read_pogigwasc_gff(file):
         from GFF file with the following keys: seqid source type old_start
         old_end score strand phase start end. start, end equal old_start,
         old_end; initialized here to update coords subsequently if inserting
-        introns.
+        introns. start, end, old_start, old_end coordinates all 0-based
+        end-exclusive
     """
     counter = defaultdict( # contig
         lambda: defaultdict( # feature_type
@@ -119,6 +120,9 @@ def read_pogigwasc_gff(file):
         for feature_id in features[seqid]:
             features[seqid][feature_id]['start'] = int(features[seqid][feature_id]['old_start'])
             features[seqid][feature_id]['end'] = int(features[seqid][feature_id]['old_end'])
+            # Set all CDS phases to zero because Pogigwasc only predicts complete CDSs
+            if features[seqid][feature_id]['type'] == 'CDS':
+                features[seqid][feature_id]['phase'] = 0
 
     return(features)
 

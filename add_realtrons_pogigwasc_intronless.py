@@ -220,75 +220,6 @@ def segment_cds_with_introns(genes, features, introns, intron_parents, orphan_in
             introns[seqid][orphan_id]['Note'] = 'orphan'
 
 
-def dict2gff(feature: dict, feature_id, parent_id=None):
-    """Convert dict of features to lists for GFF output
-
-    If feature is multisegmented, i.e. fields 'start', 'end', and 'phase' are
-    list objects, then report each segment as separate line. 
-
-    Parameters
-    ----------
-    feature : dict
-        Features keyed by GFF keys
-    feature_id : str
-        Feature ID to use in ID field of attributes
-    parent_id : str
-        Parent feature ID to use in Parent field of attributes
-
-    Returns
-    -------
-    list
-        list of lists, containing 9 fields of GFF line
-    """
-    # return list of lists of GFF fields
-    out = []
-    #attrs = {'ID': feature_id, 'Parent' : parent_id}
-    attrs = defaultdict(str)
-    if 'attributes' in feature:
-        for i in feature['attributes'].rstrip(';').split(';'):
-            attrs[i.split('=')[0]] = attrs[i.split('=')[1]]
-    attrs['ID'] = feature_id
-    if parent_id:
-        attrs['Parent'] = parent_id
-    elif 'Parent' in feature:
-        attrs['Parent'] = feature['Parent']
-    # add other attributes
-    attrkeys = ['ID','Parent']
-    for key in feature:
-        if key not in GFF_KEYS and key not in ['ID','Parent']:
-            attrs[key] = feature[key]
-            attrkeys.append(key) # to ensure that ID and Parent come first
-    attributes_string = ";".join([str(key)+"="+str(attrs[key]) for key in attrkeys if key in attrs])
-
-    if type(feature['start']) is list:
-        # multi-segment feature, all fields identical except start/end/phase coords
-        for i in range(len(feature['start'])):
-            # skip zero-length feature segments
-            if feature['end'][i] > feature['start'][i]:
-                newstart, newend = py2gff_coords(feature['start'][i], feature['end'][i])
-                line = [feature['seqid'], feature['source'], feature['type'],
-                        newstart, newend,
-                        feature['score'], feature['strand'],
-                        feature['phase'][i],
-                        attributes_string]
-                out.append(line)
-            elif feature['start'][i] == feature['end'][i]:
-                print(f"Skipping zero-length feature segment { str(feature['start'][i]) } for feature {feature_id}")
-            else:
-                print(f"Start before end for coords { str(feature['start'][i]) } { str(feature['end'][i]) } for feature {feature_id}")
-
-    else:
-        newstart, newend = py2gff_coords(feature['start'], feature['end'])
-        line = [feature['seqid'], feature['source'], feature['type'],
-                newstart, newend,
-                feature['score'], feature['strand'],
-                feature['phase'],
-                attributes_string]
-        out.append(line)
-
-    return(out)
-
-
 if __name__ == '__main__':
     # parse arguments
     parser = argparse.ArgumentParser()
@@ -299,6 +230,8 @@ if __name__ == '__main__':
         Pogigwasc intronless-mode gene predictions, GFF3 file.
         Assumes no overlapping features, only `CDS` and `stop_codon` features,
         and stop codons not contained in adjacent CDS features.
+        If the prediction was performed on contigs split from scaffolds, the
+        coordinates should have been corrected with recombine_contigs.py
         """)
     parser.add_argument("--output", action='store', type=str,
         help="Prefix for output files")

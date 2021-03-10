@@ -8,7 +8,6 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-tbl = 27
 
 if __name__ == "__main__":
     # command line args
@@ -23,11 +22,14 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--assembly", action='store', help="""
         Genome assembly, contig names must match GFF file
         """)
+    parser.add_argument("-t", "--trans_table", action='store', default=27,
+        help="Translation table to use. Default 27 (karyorelict)")
     parser.add_argument("-g", "--gff", action='store', help="""
         Input GFF file from Pogigwasc and/or Pogigwasc + Realtrons pipeline
         """)
     parser.add_argument("-o", "--output", action='store', help="""
-        Output file name
+        Output file name prefix. Output files will be suffixed `.protein.faa`
+        and `.cds.fna`
         """)
     args = parser.parse_args()
 
@@ -48,6 +50,7 @@ if __name__ == "__main__":
     # Concatenate CDS intervals and translate
     translated = [] # translations
     problematic = [] # combined CDS lengths not a multiple of 3
+    cdss = [] # concatenated CDSs
     for gene in cds_by_parent:
         seq = Seq('')
         # Sort by start interval
@@ -58,9 +61,13 @@ if __name__ == "__main__":
         if len(seq) % 3 != 0:
             problematic.append(gene)
         else:
-            rec = SeqRecord(seq[:-3].translate(table=tbl),
+            rec = SeqRecord(seq[:-3].translate(table=args.trans_table),
                     id=f'{gene}_trans', name=f'{gene}_trans')
             translated.append(rec)
+            # CDS includes stop codon
+            cds = SeqRecord(seq, id=f'{gene}', name=f'{gene}')
+            cdss.append(cds)
     print(f"Translated gene features: {str(len(translated))}")
 
-    SeqIO.write(translated, args.output, 'fasta')
+    SeqIO.write(translated, args.output+'.protein.faa', 'fasta')
+    SeqIO.write(cdss, args.output+'.cds.fna', 'fasta')

@@ -18,6 +18,9 @@ Scripts
    This is because pogigwasc does accepts only contigs (no Ns) as input
  * `recombine_contigs.py` - Recombine annotations performed on split contigs to
    original scaffold coordinates. Requires JSON output from `split_scaffolds.py`
+ * `add_attributes_pogigwasc.py` - Add parent gene features and ID, Parent
+   attributes to pogigwasc predictions and extend CDSs to include adjacent stop
+   codons.
  * `add_realtrons_pogigwasc_intronless.py` - Combine pogigwasc gene predictions
    and "realtrons" (empirically predicted introns from RNAseq mapping) predicted
    by Intronarrator. Intronarrator must first be used to identify realtrons and

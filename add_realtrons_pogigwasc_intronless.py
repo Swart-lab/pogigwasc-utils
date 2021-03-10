@@ -234,9 +234,12 @@ if __name__ == '__main__':
         coordinates should have been corrected with recombine_contigs.py
         """)
     parser.add_argument("--output", action='store', type=str,
-        help="Prefix for output files")
+        help="Prefix for output files. GFF file will be suffixed `.gff3`")
     parser.add_argument("--dump", action='store_true',
-        help="Dump intermediate files to JSON for troubleshooting")
+        help="""
+        Dump intermediate files to JSON for troubleshooting. Dump files will be
+        suffixed `.dump.*.json`
+        """)
     args = parser.parse_args()
 
     # import data
@@ -266,7 +269,7 @@ if __name__ == '__main__':
     # sort by coordinates
     # negative sort by end coordinates so that enclosing features are listed before their components
     out = sorted(out, key=lambda x: (x[0], int(x[3]), -int(x[4])))
-    with open(args.output + ".add_realtrons.gff3", "w") as fh:
+    with open(args.output + ".gff3", "w") as fh:
         for line in out:
             fh.write("\t".join([str(i) for i in line]))
             fh.write("\n")

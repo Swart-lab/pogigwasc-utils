@@ -10,6 +10,24 @@ Requires python 3.6+, Biopython, pybedtools
 [pogigwasc](https://github.com/Swart-lab/pogigwasc) is a gene predictor for
 eukaryotic genomes with ambiguous stop codons, developed by David Vetter.
 
+Scripts
+-------
+
+ * `split_scaffolds.py` - Split scaffolds on Ns into contigs, and record
+   original coordinates in a JSON file (used later to recombine the contigs).
+   This is because pogigwasc does accepts only contigs (no Ns) as input
+ * `recombine_contigs.py` - Recombine annotations performed on split contigs to
+   original scaffold coordinates. Requires JSON output from `split_scaffolds.py`
+ * `add_realtrons_pogigwasc_intronless.py` - Combine pogigwasc gene predictions
+   and "realtrons" (empirically predicted introns from RNAseq mapping) predicted
+   by Intronarrator. Intronarrator must first be used to identify realtrons and
+   artificially remove them from the assembly. Gene prediction then run with
+   pogigwasc on the intronless assembly in intronless mode.
+ * `pogigwasc_utils_shared.py` - Functions shared by more than one script (not
+   used as a standalone script)
+ * `testing.py` - Test module for these scripts
+
+
 TODO:
  * How to split and handle hard masks at beginning or end of contigs?
  * How to deal with empirical introns that are exactly at the boundaries of a CDS?

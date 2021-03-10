@@ -57,8 +57,36 @@ def py2gff_coords(start:int, end:int):
 
 
 def read_pogigwasc_gff(file):
-    # import minus_introns feature table
-    # convert GFF to python coordinates
+    """
+    Import Pogigwasc feature table, convert GFF to python coordinates
+
+    Assumptions:
+     - GFF is already sorted by contig and start coordinate when reported by
+       Pogigwasc
+     - Features do not overlap, stop_codon features are not included in their
+       adjacent CDS features
+     - phase, score fields are undefined, attributes column not provided by
+       Pogigwasc
+
+    If Pogigwasc encounters multiple solutions with equal score for a given
+    contig, it will report all of them in 'blocks'. Within each block, the
+    features are already sorted by start coordinate. We assume that they are
+    all equally good scoring and simply keep the first one, discard the rest.
+
+    Arguments
+    ---------
+    file : str
+        Path to GFF file produced by Pogigwasc
+
+    Returns
+    -------
+    dict
+        key1 - contig ID, key2 - feature ID, value is a dict of feature data
+        from GFF file with the following keys: seqid source type old_start
+        old_end score strand phase start end. start, end equal old_start,
+        old_end; initialized here to update coords subsequently if inserting
+        introns.
+    """
     counter = defaultdict( # contig
         lambda: defaultdict( # feature_type
             int)) # running count
@@ -66,15 +94,26 @@ def read_pogigwasc_gff(file):
     pgw_gff_keys = ['seqid','source','type','old_start','old_end','score','strand','phase']
 
     with open(file, "r") as fh:
+        # prevent backsliding:
+        # pogigwasc reports features in sorted order per contig. if multiple
+        # equally scoring solutions, pogigwasc reports multiple 'blocks' of
+        # annotations for that contig; use first block, ignore rest
+        # TODO: remove duplicates, report conflicting alternatives
+        noback = {}
         for line in fh:
-            if not re.match("\#", line):
+            if not re.match(r"\#", line):
                 spl = line.rstrip().split("\t")
                 # pogigwasc doesn't report attributes column, and leaves score and phase undefined
-                spl[3], spl[4] = gff2py_coords(int( spl[3] ), int( spl[4] ))
+                spl[3], spl[4] = gff2py_coords(int(spl[3]), int(spl[4]))
                 [seqid,source,feature_type,start,end,score,strand,phase] = spl
-                counter[seqid][feature_type] += 1
-                feature_id = "_".join([seqid, feature_type, str(counter[seqid][feature_type])])
-                features[seqid][feature_id] = dict(zip(pgw_gff_keys,spl))
+                if seqid in noback and int(start) < noback[seqid]:
+                    # skip if this contig has already been processed up to here
+                    pass
+                else:
+                    counter[seqid][feature_type] += 1
+                    feature_id = "_".join([seqid, feature_type, str(counter[seqid][feature_type])])
+                    features[seqid][feature_id] = dict(zip(pgw_gff_keys, spl))
+                    noback[seqid] = int(end)
     # initialize new start coords
     for seqid in features:
         for feature_id in features[seqid]:

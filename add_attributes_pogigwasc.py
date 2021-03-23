@@ -45,13 +45,13 @@ def create_parent_genes(features):
                 # close current cluster and start a new one
                 last_cluster.append(last_feature)
                 geneid_counter[seqid] += 1
-                geneid = seqid + "_gene_" + str(geneid_counter[seqid])
+                geneid = seqid + ".g" + str(geneid_counter[seqid])
                 genes[seqid][geneid] = {f:1 for f in last_cluster}
                 last_cluster = []
         # close the last cluster
         last_cluster.append(curr_feature)
         geneid_counter[seqid] += 1
-        geneid = seqid + "_gene_" + str(geneid_counter[seqid])
+        geneid = seqid + ".g" + str(geneid_counter[seqid])
         genes[seqid][geneid] = {f:1 for f in last_cluster}
     return(genes)
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
                 # same gene should all have the same CDS ID although we earlier
                 # used distinct identifiers to have a unique handle
                 if features[seqid][feature_id]['type'] == 'CDS':
-                    new_feature_id = "_".join([seqid, 'CDS', geneid.split("_")[-1]])
+                    new_feature_id = seqid + '.c' + geneid.split(".")[-1][1:]
                 out.extend(dict2gff(features[seqid][feature_id], new_feature_id, geneid))
     # write new file
     with open(args.output, 'w') as fh:

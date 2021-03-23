@@ -45,16 +45,16 @@ class Test_add_realtrons_pogigwasc_intronless(unittest.TestCase):
         # read GFF and convert coords to python type
         # original: (47,70), (71,73)
         features = read_pogigwasc_gff(os.path.join(prefix,'test/test_pogigwasc_intronless.gff3'))
-        self.assertEqual( features['contig_1']['contig_1_CDS_1']['start'], 46 )
-        self.assertEqual( features['contig_1']['contig_1_CDS_1']['end'], 70 )
-        self.assertEqual( features['contig_1']['contig_1_stop_codon_1']['start'], 70 )
-        self.assertEqual( features['contig_1']['contig_1_stop_codon_1']['end'], 73 )
+        self.assertEqual( features['contig_1']['contig_1.c1']['start'], 46 )
+        self.assertEqual( features['contig_1']['contig_1.c1']['end'], 70 )
+        self.assertEqual( features['contig_1']['contig_1.s1']['start'], 70 )
+        self.assertEqual( features['contig_1']['contig_1.s1']['end'], 73 )
         # create parent gene features and extend CDS to encompass stop codon
         genes = create_parent_genes(features)
-        self.assertTrue( 'contig_1_CDS_1' in genes['contig_1']['contig_1_gene_1'])
-        self.assertTrue( 'contig_1_stop_codon_1' in genes['contig_1']['contig_1_gene_1'])
-        self.assertTrue( 'contig_1_CDS_2' in genes['contig_1']['contig_1_gene_2'])
-        self.assertTrue( 'contig_1_stop_codon_2' in genes['contig_1']['contig_1_gene_2'])
+        self.assertTrue( 'contig_1.c1' in genes['contig_1']['contig_1.g1'])
+        self.assertTrue( 'contig_1.s1' in genes['contig_1']['contig_1.g1'])
+        self.assertTrue( 'contig_1.c2' in genes['contig_1']['contig_1.g2'])
+        self.assertTrue( 'contig_1.s2' in genes['contig_1']['contig_1.g2'])
 
     def test_add_introns_to_features(self):
         # read features
@@ -65,12 +65,12 @@ class Test_add_realtrons_pogigwasc_intronless(unittest.TestCase):
 
         # identify parent features for introns and extend features
         intron_parents = update_feature_coords_realtrons(features, introns)
-        self.assertEqual( intron_parents['contig_1']['contig_1_CDS_1'],
+        self.assertEqual( intron_parents['contig_1']['contig_1.c1'],
             ['intron1', 'intron1a', 'intron1b'])
-        self.assertEqual( intron_parents['contig_1']['contig_1_stop_codon_1'],
+        self.assertEqual( intron_parents['contig_1']['contig_1.s1'],
             ['intron1b'])
-        self.assertEqual ( features['contig_1']['contig_1_CDS_1']['start'], 46)
-        self.assertEqual ( features['contig_1']['contig_1_CDS_1']['end'], 120)
+        self.assertEqual ( features['contig_1']['contig_1.c1']['start'], 46)
+        self.assertEqual ( features['contig_1']['contig_1.c1']['end'], 120)
 
         # identify orphan introns and conflicts
         orphan_introns, conflict_features = check_strand_conflict_orphan_introns(
@@ -81,22 +81,22 @@ class Test_add_realtrons_pogigwasc_intronless(unittest.TestCase):
         # split CDS features that overlap with introns
         segment_cds_with_introns(genes, features, introns,
             intron_parents, orphan_introns, conflict_features)
-        self.assertEqual( features['contig_1']['contig_1_CDS_1']['start'],
+        self.assertEqual( features['contig_1']['contig_1.c1']['start'],
             [46, 67, 83, 118])
-        self.assertEqual( features['contig_1']['contig_1_CDS_1']['end'],
+        self.assertEqual( features['contig_1']['contig_1.c1']['end'],
             [46, 73, 102, 120])
-        self.assertEqual( features['contig_1']['contig_1_CDS_1']['phase'],
+        self.assertEqual( features['contig_1']['contig_1.c1']['phase'],
             [0, 0, 0, 0])
-        self.assertEqual( features['contig_1']['contig_1_stop_codon_1']['start'],
+        self.assertEqual( features['contig_1']['contig_1.s1']['start'],
             [101, 118])
-        self.assertEqual( features['contig_1']['contig_1_stop_codon_1']['end'],
+        self.assertEqual( features['contig_1']['contig_1.s1']['end'],
             [102, 120])
         self.assertEqual( introns['contig_1']['intron1']['Parent'],
-            'contig_1_gene_1')
+            'contig_1.g1')
         self.assertEqual( introns['contig_1']['intron1a']['Parent'],
-            'contig_1_gene_1')
+            'contig_1.g1')
         self.assertEqual( introns['contig_1']['intron1b']['Parent'],
-            'contig_1_gene_1')
+            'contig_1.g1')
 
     def test_find_gene_limits(self):
         # read features
@@ -113,7 +113,7 @@ class Test_add_realtrons_pogigwasc_intronless(unittest.TestCase):
         segment_cds_with_introns(genes, features, introns,
             intron_parents, orphan_introns, conflict_features)
         self.assertEqual(
-            find_gene_limits(genes, 'contig_1', 'contig_1_gene_1', features),
+            find_gene_limits(genes, 'contig_1', 'contig_1.g1', features),
             (46, 120, '+'))
 
 

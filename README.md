@@ -30,6 +30,13 @@ Scripts
    used as a standalone script)
  * `testing.py` - Test module for these scripts
 
+Feature IDs have the format `{seqid}.g{number}` for genes, `{seqid}.c{number}`
+for CDSs, and `{seqid}.s{number}` for stop codons, where the CDS and stop codon
+features have the same number as their parent gene feature. CDSs are directly
+linked to parent genes, without intervening transcript ("mRNA") feature,
+because these are purely computational predictions, and other gene features
+like UTRs are not predicted.
+
 
 TODO:
  * How to split and handle hard masks at beginning or end of contigs?

@@ -132,7 +132,7 @@ def create_parent_genes(features):
                         features[seqid][last_feature]['end'] = features[seqid][feature_id]['end']
                         # update gene counter
                         geneid_counter[seqid] += 1
-                        geneid = "_".join([seqid, 'gene', str(geneid_counter[seqid])])
+                        geneid = seqid + '.g' + str(geneid_counter[seqid])
                         # add feature ID and Parent gene id to attributes field
                         genes[seqid][geneid] = { feature_id : 1,
                                                  last_feature: 1}
@@ -144,7 +144,7 @@ def create_parent_genes(features):
                         features[seqid][feature_id]['start'] = features[seqid][last_feature]['start']
                         # update gene counter
                         geneid_counter[seqid] += 1
-                        geneid = "_".join([seqid, 'gene', str(geneid_counter[seqid])])
+                        geneid = seqid + '.g' + str(geneid_counter[seqid])
                         # add feature ID and Parent gene id to attributes field
                         genes[seqid][geneid] = { feature_id : 1,
                                                  last_feature: 1}

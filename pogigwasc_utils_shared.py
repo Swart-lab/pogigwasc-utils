@@ -99,6 +99,7 @@ def read_pogigwasc_gff(file):
             int)) # running count
     features = defaultdict(dict)
     pgw_gff_keys = ['seqid','source','type','old_start','old_end','score','strand','phase']
+    feature_code = { 'gene' : 'g', 'CDS' : 'c', 'stop_codon' : 's' }
 
     with open(file, "r") as fh:
         # prevent backsliding:
@@ -118,7 +119,11 @@ def read_pogigwasc_gff(file):
                     pass
                 else:
                     counter[seqid][feature_type] += 1
-                    feature_id = "_".join([seqid, feature_type, str(counter[seqid][feature_type])])
+                    if feature_type in feature_code:
+                        feature_id = seqid + "." + feature_code[feature_type] + str(counter[seqid][feature_type])
+                    else:
+                        feature_id = seqid + "." + feature_type + str(counter[seqid][feature_type])
+                    # feature_id = "_".join([seqid, feature_type, str(counter[seqid][feature_type])])
                     features[seqid][feature_id] = dict(zip(pgw_gff_keys, spl))
                     noback[seqid] = int(end)
     # initialize new start coords
